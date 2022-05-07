@@ -77,6 +77,7 @@ func RegisterModel() {
 		new(models.Comments),
 		new(models.Gitee),
 		new(models.Github),
+		new(models.IAM),
 		new(models.QQ),
 		new(models.DocumentStore),
 		new(models.Category),

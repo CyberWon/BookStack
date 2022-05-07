@@ -59,6 +59,11 @@ func (this *AccountController) Oauth() {
 		this.Data["LoginQQ"] = true
 		oauthLogin = true
 	}
+	// add iam login
+	if v, ok := this.Option["LOGIN_IAM"]; ok && strings.EqualFold(v, "true") {
+		this.Data["LoginIAM"] = true
+		oauthLogin = true
+	}
 	if v, ok := this.Option["LOGIN_GITHUB"]; ok && strings.EqualFold(v, "true") {
 		this.Data["LoginGitHub"] = true
 		oauthLogin = true
@@ -199,6 +204,67 @@ func (this *AccountController) Oauth() {
 			beego.Error(err)
 			this.Abort("404")
 		}
+	case "iam":
+		tips = `您正在使用【IAM】登录`
+		token, err := oauth.GetIAMAccessToken(code)
+		if err != nil {
+			beego.Error(err)
+			this.Abort("404")
+		}
+
+		// openid, err := oauth.GetQQOpenId(token)
+		// if err != nil {
+		// 	beego.Error(err.Error())
+		// 	this.Abort("404")
+		// }
+
+		info, err := oauth.GetIAMUserInfo(token.AccessToken)
+		beego.Debug("iam用户信息", info)
+		if err != nil {
+			beego.Error(err.Error())
+			this.Abort("404")
+		}
+
+		if info.Id > 0 {
+			existInfo, _ := models.ModelIAM.GetUserByIAMId(info.Id, "id", "member_id")
+
+			member, err := this.Member.FindByAccount(info.Login)
+			if err != nil {
+				beego.Error(err)
+			}
+			beego.Debug("IAM登录", info.Login, member)
+			if member != nil { //直接登录
+				err = this.loginByMemberId(member.MemberId)
+				if err != nil {
+					beego.Error(err.Error())
+					this.Abort("404")
+				}
+				this.Redirect(beego.URLFor("HomeController.Index"), 302)
+				return
+			}
+			if existInfo.Id == 0 { //原本不存在于数据库中的数据需要入库
+				orm.NewOrm().Insert(&models.IAM{IAMUser: info})
+				member := models.NewMember()
+				member.Account = info.Login
+				member.Nickname = info.Name
+				member.Password = ""
+				member.Role = conf.MemberGeneralRole
+				member.Avatar = conf.GetDefaultAvatar()
+				member.CreateAt = 0
+				member.Email = info.Email
+				member.Status = 0
+				member.Add()
+
+			}
+			nickname = info.Name
+			username = info.Login
+			email = info.Email
+			id = info.Id
+		} else {
+			err = errors.New("获取iam用户数据失败")
+			beego.Error(err.Error())
+			this.Abort("404")
+		}
 	default: //email
 		IsEmail = true
 	}
@@ -218,7 +284,13 @@ func (this *AccountController) Oauth() {
 	this.Data["GithubCallback"] = beego.AppConfig.String("oauth::githubCallback")
 	this.Data["QQClientId"] = beego.AppConfig.String("oauth::qqClientId")
 	this.Data["QQCallback"] = beego.AppConfig.String("oauth::qqCallback")
+	// add iam login
+	this.Data["IAMClientId"] = beego.AppConfig.String("oauth::IAMClientId")
+	this.Data["IAMCallback"] = beego.AppConfig.String("oauth::IAMCallback")
+	this.Data["IAMAuthorize"] = beego.AppConfig.String("oauth::IAMAuthorize")
+
 	this.Data["RandomStr"] = time.Now().Unix()
+	beego.Debug("写入session", oa, id)
 	this.SetSession("auth", fmt.Sprintf("%v-%v", oa, id)) //存储标识，以标记是哪个用户，在完善用户信息的时候跟传递过来的auth和id进行校验
 	this.TplName = "account/bind.html"
 
@@ -242,6 +314,11 @@ func (this *AccountController) Login() {
 	oauthLogin := false
 	if v, ok := this.Option["LOGIN_QQ"]; ok && strings.EqualFold(v, "true") {
 		this.Data["LoginQQ"] = true
+		oauthLogin = true
+	}
+	// add iam login
+	if v, ok := this.Option["LOGIN_IAM"]; ok && strings.EqualFold(v, "true") {
+		this.Data["LoginIAM"] = true
 		oauthLogin = true
 	}
 	if v, ok := this.Option["LOGIN_GITHUB"]; ok && strings.EqualFold(v, "true") {
@@ -298,6 +375,11 @@ func (this *AccountController) Login() {
 	this.Data["GithubCallback"] = beego.AppConfig.String("oauth::githubCallback")
 	this.Data["QQClientId"] = beego.AppConfig.String("oauth::qqClientId")
 	this.Data["QQCallback"] = beego.AppConfig.String("oauth::qqCallback")
+	// add iam login
+	this.Data["IAMClientId"] = beego.AppConfig.String("oauth::IAMClientId")
+	this.Data["IAMCallback"] = beego.AppConfig.String("oauth::IAMCallback")
+	this.Data["IAMAuthorize"] = beego.AppConfig.String("oauth::IAMAuthorize")
+
 	this.Data["RandomStr"] = time.Now().Unix()
 	this.GetSeoByPage("login", map[string]string{
 		"title":       "登录 - " + this.Sitename,
@@ -319,7 +401,7 @@ func (this *AccountController) Bind() {
 	oauthId := this.GetString("id")
 	avatar := this.GetString("avatar") //用户头像
 	isbind, _ := this.GetInt("isbind", 0)
-
+	beego.Debug("开始绑定", oauthType)
 	ibind := func(oauthType string, oauthId, memberId interface{}) (err error) {
 		//注册成功，绑定用户
 		switch oauthType {
@@ -329,6 +411,8 @@ func (this *AccountController) Bind() {
 			err = models.ModelGithub.Bind(oauthId, memberId)
 		case "qq":
 			err = models.ModelQQ.Bind(oauthId, memberId)
+		case "iam":
+			err = models.ModelIAM.Bind(oauthId, memberId)
 		}
 		return
 	}

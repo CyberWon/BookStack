@@ -179,6 +179,10 @@ func (m *Option) Init() error {
 			OptionTitle: "是否允许使用QQ登录",
 		}, {
 			OptionValue: "true",
+			OptionName:  "LOGIN_IAM",
+			OptionTitle: "是否允许使用IAM登录",
+		}, {
+			OptionValue: "true",
 			OptionName:  "LOGIN_GITHUB",
 			OptionTitle: "是否允许使用Github登录",
 		}, {

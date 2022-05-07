@@ -89,6 +89,12 @@
                                     <img src="/static/images/qq.png" alt="QQ">
                                 </a>
                                 {{end}}
+                                {{if $.LoginIAM}}
+                                <a class="tooltips" href="{{.IAMAuthorize}}?client_id={{.IAMClientId}}&redirect_uri={{.IAMCallback}}&response_type=code&state={{.RandomStr}}" rel="nofollow" title="使用IAM一键登录">
+                                    <img src="/static/images/sso.png" alt="IAM">
+                                </a>
+                                {{end}}
+
                                 {{if $.LoginGitHub}}
                                 <a class="tooltips" href="https://github.com/login/oauth/authorize?client_id={{.GithubClientId}}&redirect_uri={{.GithubCallback}}" rel="nofollow" title="使用GitHub一键登录">
                                     <img src="/static/images/github.png" alt="GitHub">
