@@ -53,6 +53,12 @@
                             <div class="form-group mgt-15px">
                                 <button type="button" id="btn-login" class="btn btn-success" style="width: 100%"  data-loading-text="正在登录..." autocomplete="off">立即登录</button>
                             </div>
+                            {{if $.LoginIAM}}
+                            <div class="form-group mgt-15px">
+                                <a type="button" id="btn-login-iam" style="background-color: #1296db;width: 100%" href="{{.IAMAuthorize}}?scope=read&client_id={{.IAMClientId}}&redirect_uri={{.IAMCallback}}&response_type=code&state={{.RandomStr}}" class="btn btn-success" style="width: 100%"  data-loading-text="正在登录..." autocomplete="off">使用IAM一键登录</a>
+                            </div>
+
+                            {{end}}
                     
                             <div class="form-group">
                              

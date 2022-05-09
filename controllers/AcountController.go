@@ -237,25 +237,33 @@ func (this *AccountController) Oauth() {
 				err = this.loginByMemberId(member.MemberId)
 				if err != nil {
 					beego.Error(err.Error())
-					this.Abort("404")
+					if existInfo.Id == 0 { //原本不存在于数据库中的数据需要入库
+						orm.NewOrm().Insert(&models.IAM{IAMUser: info})
+						new_member := models.NewMember()
+						new_member.Account = info.Login
+						new_member.Nickname = info.Name
+						new_member.Password = "Q88p4tfeeN2iziOI"
+						new_member.Role = conf.MemberGeneralRole
+						new_member.Avatar = conf.GetDefaultAvatar()
+						new_member.CreateAt = 0
+						new_member.Email = info.Email
+						new_member.Status = 0
+						if err := new_member.Add(); err != nil {
+							beego.Error(err)
+							// this.JsonResult(6006, err.Error())
+						}
+						err = this.loginByMemberId(new_member.MemberId)
+						if err != nil {
+							beego.Error(err.Error())
+							this.Abort("404")
+						}
+					}
+
 				}
 				this.Redirect(beego.URLFor("HomeController.Index"), 302)
 				return
 			}
-			if existInfo.Id == 0 { //原本不存在于数据库中的数据需要入库
-				orm.NewOrm().Insert(&models.IAM{IAMUser: info})
-				member := models.NewMember()
-				member.Account = info.Login
-				member.Nickname = info.Name
-				member.Password = ""
-				member.Role = conf.MemberGeneralRole
-				member.Avatar = conf.GetDefaultAvatar()
-				member.CreateAt = 0
-				member.Email = info.Email
-				member.Status = 0
-				member.Add()
 
-			}
 			nickname = info.Name
 			username = info.Login
 			email = info.Email
